@@ -1,6 +1,6 @@
 ###
 # cd ~
-# docker build --tag laptop_docker -f skypilot/Dockerfile .
+# docker build --tag laptop_docker -f skypilot/Dockerfile_laptop .
 
 FROM continuumio/miniconda3:4.11.0
 
