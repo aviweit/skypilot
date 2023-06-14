@@ -25,6 +25,8 @@ git checkout k8s_cloud-laptop_container
 
 ### Build laptop docker image
 
+update `<REGISTRY>` correct registry
+
 ```
 export REGISTRY=1.2.3.4
 export IMAGE=$REGISTRY/laptop_docker
@@ -53,7 +55,7 @@ update `<registry ip>` inside yaml file with correct registry
 kubectl apply -f ./deploy-laptop.yaml
 ```
 
-### [TEMP] ensure ssh secrets are deleted
+### [TEMP] ensure ssh secrets are deleted before every 'laptop' deployment
 
 ```
 kubectl delete secret ssh-key-secret
