@@ -28,7 +28,7 @@ git checkout k8s_cloud-laptop_container
 update `<REGISTRY>` correct registry
 
 ```
-export REGISTRY=1.2.3.4
+export REGISTRY=172.31.3.2
 export IMAGE=$REGISTRY/laptop_docker
 ```
 
@@ -71,4 +71,15 @@ kubectl exec -it laptop-pod bash
 
 ```
 sky launch hello.yaml
+```
+
+## Dev (build base image)
+
+```
+export REGISTRY=172.31.3.2
+export IMAGE=$REGISTRY/laptop_docker-base
+```
+
+```
+docker build --tag $IMAGE -f skypilot/Dockerfile_laptop.base .
 ```
