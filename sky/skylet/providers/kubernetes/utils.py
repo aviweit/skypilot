@@ -13,7 +13,8 @@ def _load_config():
     if _configured:
         return
     try:
-        kubernetes.config.load_incluster_config()
+        kubernetes.config.load_kube_config()
+        #kubernetes.config.load_incluster_config()
     except ConfigException:
         kubernetes.config.load_kube_config()
     _configured = True
