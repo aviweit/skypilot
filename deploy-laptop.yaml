@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: laptop
-    image: <registry ip>:5000/laptop_docker
+    image: 172.31.3.2:5000/laptop_docker
     imagePullPolicy: Always
     command: ["/bin/sleep", "3650d"]    
 ---

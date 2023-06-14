@@ -28,7 +28,7 @@ git checkout k8s_cloud-laptop_container
 update `<REGISTRY>` correct registry
 
 ```
-export REGISTRY=172.31.3.2
+export REGISTRY=172.31.3.2:5000
 export IMAGE=$REGISTRY/laptop_docker
 ```
 
@@ -76,10 +76,11 @@ sky launch hello.yaml
 ## Dev (build base image)
 
 ```
-export REGISTRY=172.31.3.2
+export REGISTRY=172.31.3.2:5000
 export IMAGE=$REGISTRY/laptop_docker-base
 ```
 
 ```
-docker build --tag $IMAGE -f skypilot/Dockerfile_laptop.base .
+cd skypilot
+docker build --tag $IMAGE -f Dockerfile_laptop.base .
 ```

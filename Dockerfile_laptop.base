@@ -19,7 +19,7 @@ WORKDIR /sky/
 
 # Install sky
 RUN cd /sky/ && \
-    pip install ".[all]" && \
+    pip install ".[skypilot]" && \
     pip install kubernetes
 
 RUN echo "set mouse-=a" >> /root/.vimrc
