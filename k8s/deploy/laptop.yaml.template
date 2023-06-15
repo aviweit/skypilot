@@ -8,9 +8,9 @@ metadata:
 spec:
   containers:
   - name: laptop
-    image: 172.31.3.2:5000/laptop_docker
+    image: "$IMAGE"
     imagePullPolicy: Always
-    command: ["/bin/sleep", "3650d"]    
+    command: ["/bin/sleep", "3650d"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
