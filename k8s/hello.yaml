@@ -9,6 +9,7 @@ resources:
   instance_type: cpu1
 # Working directory (optional) containing the project codebase.
 # Its contents are synced to ~/sky_workdir/ on the cluster.
+# ENSURE NOT TO SELECT LARGE FOLDER
 workdir: .
 
 # Typical use: pip install -r requirements.txt
