@@ -64,7 +64,7 @@ docker push "$IMAGE"
 ### Deploy pod and roles
 
 ```
-envsubst < ./laptop.yaml.template | kubectl apply -f -
+envsubst < deploy/laptop.yaml.template | kubectl apply -f -
 ```
 
 ### [TEMP] ensure ssh secrets are deleted before every 'laptop' deployment
