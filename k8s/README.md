@@ -29,10 +29,14 @@ create secret for your public key. It will be automatically added to 'authorized
 kubectl create secret generic ssh-key-secret-laptop --from-file=ssh-publickey=$HOME/.ssh/id_rsa.pub
 ```
 
-### deploy ssh-server
+### deploy ssh-server(s)
 
 ```
 kubectl apply -f ./deploy/ubuntu-sshserver.yaml
+```
+
+```
+kubectl apply -f ./deploy/ubuntu-sshserver2.yaml
 ```
 
 ### deploy ssh-jumphost
@@ -79,10 +83,10 @@ Host ubuntu-sshserver2
 
 ### SSH into ssh server via jump host
 
-you can either provide explicit pod ip or its service name
+you can either provide explicit pod ip or pod's service name
 
 `ssh  -i ~/.ssh/id_rsa -J 172.31.3.2:30022 10.244.2.125` or `ssh  -i ~/.ssh/id_rsa  -J 172.31.3.2:30022 sshserver`
 
-another option would be to ssh into <Host> which is defined under ~/.ssh/config
+another option would be to ssh into `<Host>` which is defined under ~/.ssh/config:
 
-`ssh ubuntu-sshserver`
+`ssh ubuntu-sshserver`, `ssh ubuntu-sshserver2`
