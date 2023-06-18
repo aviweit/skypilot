@@ -34,7 +34,8 @@ append the below to ~/.ssh/config
 
 ```
 Host ubuntu-sshserver
-  HostName 172.31.3.2
+  # internal pod ipaddress
+  HostName 10.244.2.125
   User weit
   IdentityFile /home/weit/.ssh/id_rsa
   IdentitiesOnly yes
@@ -42,8 +43,15 @@ Host ubuntu-sshserver
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
   GlobalKnownHostsFile=/dev/null
-  # local pod network ipaddress
-  ProxyJump weit@10.244.1.99
   # nodeport
-  Port 30022
+  ProxyJump 172.31.3.2:30022
 ```
+
+### SSH into ssh server via jump host
+
+
+`ssh  -i ~/.ssh/id_rsa  -J 172.31.3.2:30022 10.244.2.125` or `ssh  -i ~/.ssh/id_rsa  -J 172.31.3.2:30022 sshserver`
+
+and
+
+`ssh ubuntu-sshserver`
