@@ -29,15 +29,15 @@ append the below to ~/.ssh/config
 ```
 Host ubuntu-sshserver
   HostName 172.31.3.2
-  User root
+  User weit
   IdentityFile /home/weit/.ssh/id_rsa
   IdentitiesOnly yes
   ForwardAgent yes
   StrictHostKeyChecking no
   UserKnownHostsFile=/dev/null
   GlobalKnownHostsFile=/dev/null
-  # flannel
-  ProxyJump root@10.244.1.99
+  # local pod network ipaddress
+  ProxyJump weit@10.244.1.99
   # nodeport
   Port 30022
 ```
