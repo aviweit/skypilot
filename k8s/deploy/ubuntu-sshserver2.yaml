@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sshserver2
+  labels:
+    app: sshserver2
+spec:
+  containers:
+  - name: sshserver2
+    image: 172.31.3.2:5000/sshjumpandserver:latest
+    command: ["/bin/sleep", "3650d"]
+    imagePullPolicy: IfNotPresent
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/bash", "-c", "mkdir -p ~/.ssh && cp /etc/secret-volume/ssh-publickey ~/.ssh/authorized_keys && sudo service ssh restart"]
+    volumeMounts:
+    - name: secret-volume
+      readOnly: true
+      mountPath: "/etc/secret-volume"
+  volumes:
+   - name: secret-volume
+     secret:
+       secretName: ssh-key-secret-laptop
+  restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sshserver2
+spec:
+  selector:
+    app: sshserver2
+  ports:
+  - protocol: TCP
+    port: 22
+    targetPort: 22
