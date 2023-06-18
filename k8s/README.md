@@ -8,10 +8,16 @@ Login to user host and perform the following in this order
 
 ### create secret
 
-create secret for your public key. It will automatcially added to ssh-jumphost 'autorized_keys'
+create secret for your public key. It will automatically added to ssh-jumphost and server 'authorized_keys'
 
 ```
 kubectl create secret generic ssh-key-secret-laptop --from-file=ssh-publickey=$HOME/.ssh/id_rsa.pub
+```
+
+### deploy ssh-server
+
+```
+kubectl apply -f ./deploy/ubuntu-sshserver.yaml
 ```
 
 ### deploy ssh-jumphost
