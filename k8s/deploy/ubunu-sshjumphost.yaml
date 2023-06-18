@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jumphost
+  labels:
+    app: jumphost
+spec:
+  containers:
+  - name: jumphost
+    image: ubuntu:latest
+    command: ["/bin/sleep", "3650d"]
+    imagePullPolicy: IfNotPresent
+    lifecycle:
+      postStart:
+        exec:
+          command: ["/bin/bash", "-c", "apt-get update && apt-get install -y vim && apt-get install -y openssh-server && mkdir -p ~/.ssh && cp /etc/secret-volume/ssh-publickey ~/.ssh/authorized_keys && service ssh restart"]
+    volumeMounts:
+    - name: secret-volume
+      readOnly: true
+      mountPath: "/etc/secret-volume"
+  volumes:
+   - name: secret-volume
+     secret:
+       secretName: ssh-key-secret-laptop
+  
+  restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+  name: jumphost
+spec:
+  type: NodePort
+  selector:
+    app: jumphost
+  ports:
+  - protocol: TCP
+    port: 22
+    nodePort: 30022
+    targetPort: 22
