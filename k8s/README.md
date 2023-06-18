@@ -8,7 +8,7 @@ Login to user host and perform the following in this order
 
 ### create secret
 
-create secret for your public key. It will automatically added to ssh-jumphost and server 'authorized_keys'
+create secret for your public key. It will be automatically added to ssh-jumphost's and server's 'authorized_keys'
 
 ```
 kubectl create secret generic ssh-key-secret-laptop --from-file=ssh-publickey=$HOME/.ssh/id_rsa.pub
@@ -22,7 +22,7 @@ kubectl apply -f ./deploy/ubuntu-sshserver.yaml
 
 ### deploy ssh-jumphost
 
-automatically starts ssh service exposing port 22 through nodeport
+automatically starts ssh service exposing port 22 through nodeport (30022)
 
 ```
 kubectl apply -f ./deploy/ubuntu-sshjumphost.yaml
@@ -35,6 +35,7 @@ append the below to ~/.ssh/config
 ```
 Host ubuntu-sshserver
   # internal pod ipaddress
+  # or service name of this pod
   HostName 10.244.2.125
   User weit
   IdentityFile /home/weit/.ssh/id_rsa
@@ -49,9 +50,10 @@ Host ubuntu-sshserver
 
 ### SSH into ssh server via jump host
 
+you can either provide explicit pod ip or its service name
 
-`ssh  -i ~/.ssh/id_rsa  -J 172.31.3.2:30022 10.244.2.125` or `ssh  -i ~/.ssh/id_rsa  -J 172.31.3.2:30022 sshserver`
+`ssh  -i ~/.ssh/id_rsa -J 172.31.3.2:30022 10.244.2.125` or `ssh  -i ~/.ssh/id_rsa  -J 172.31.3.2:30022 sshserver`
 
-and
+another option would be to ssh into <Host> which is defined under ~/.ssh/config
 
 `ssh ubuntu-sshserver`
