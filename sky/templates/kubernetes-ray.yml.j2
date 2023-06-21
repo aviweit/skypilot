@@ -109,6 +109,24 @@ provider:
                   port: 8265
                   targetPort: 8265
 
+    ssh_jumphost_services:
+      - apiVersion: v1
+        kind: Service
+        metadata:
+          labels:
+            parent: skypilot
+          # TODO (weit) per user
+          name: sshjumper
+        spec:
+          type: NodePort
+          selector:
+            component: sshjumper
+          ports:
+            - protocol: TCP
+              port: 22
+              targetPort: 22
+              #nodePort: 30022
+
 # Specify the pod type for the ray head node (as configured below).
 head_node_type: head_node
 # Specify the allowed pod types for this ray cluster and the resources they provide.

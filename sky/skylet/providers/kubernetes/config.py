@@ -60,6 +60,7 @@ def bootstrap_kubernetes(config):
         namespace = _configure_namespace(config["provider"])
 
     _configure_services(namespace, config["provider"])
+    _configure_sshjumphost_services(namespace, config["provider"])
 
     if not config["provider"].get("_operator"):
         # These steps are unecessary when using the Operator.
@@ -298,6 +299,38 @@ def _configure_autoscaler_role_binding(namespace, provider_config):
     logger.info(log_prefix + not_found_msg(binding_field, name))
     kubernetes.auth_api().create_namespaced_role_binding(namespace, binding)
     logger.info(log_prefix + created_msg(binding_field, name))
+
+
+def _configure_sshjumphost_services(namespace, provider_config):
+    service_field = "ssh_jumphost_services"
+    if service_field not in provider_config:
+        logger.info(log_prefix + not_provided_msg(service_field))
+        return
+
+    services = provider_config[service_field]
+    for service in services:
+        if "namespace" not in service["metadata"]:
+            service["metadata"]["namespace"] = namespace
+        elif service["metadata"]["namespace"] != namespace:
+            raise InvalidNamespaceError(service_field, namespace)
+
+        name = service["metadata"]["name"]
+        field_selector = "metadata.name={}".format(name)
+        services = (kubernetes.core_api().list_namespaced_service(
+            namespace, field_selector=field_selector).items)
+        if len(services) > 0:
+            assert len(services) == 1
+            existing_service = services[0]
+            if service == existing_service:
+                logger.info(log_prefix + using_existing_msg("service", name))
+                return
+            else:
+                logger.info(log_prefix + updating_existing_msg("service", name))
+                kubernetes.core_api().patch_namespaced_service(name, namespace, service)
+        else:
+            logger.info(log_prefix + not_found_msg("service", name))
+            kubernetes.core_api().create_namespaced_service(namespace, service)
+            logger.info(log_prefix + created_msg("service", name))
 
 
 def _configure_services(namespace, provider_config):
