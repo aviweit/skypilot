@@ -116,16 +116,56 @@ provider:
           labels:
             parent: skypilot
           # TODO (weit) per user
-          name: sshjumper
+          name: sky-sshjumper
         spec:
           type: NodePort
           selector:
-            component: sshjumper
+            component: sky-sshjumper
           ports:
             - protocol: TCP
               port: 22
               targetPort: 22
               #nodePort: 30022
+
+
+    ssh_jumphost_node:
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        # Automatically generates a name for the pod with this prefix.
+        # TODO (weit) per user
+        name: sky-sshjumper
+        labels:
+            parent: skypilot
+            # TODO (weit) per user
+            component: sky-sshjumper
+      spec:
+        restartPolicy: Never
+
+        volumes:
+        - name: secret-volume
+          secret:
+            secretName: {{ssh_key_secret_name}}
+        containers:
+        - name: sky-sshjumper
+          imagePullPolicy: Always
+          image: {{skypilot_k8s_sshjumphost_image}}
+          # Do not change this command - it keeps the pod alive until it is
+          # explicitly killed.
+          command: ["/bin/bash", "-c", "--"]
+          args: ['trap : TERM INT; sleep infinity & wait;']
+          ports:
+          - containerPort: 22  # Used for SSH
+
+          volumeMounts:
+          - name: secret-volume
+            readOnly: true
+            mountPath: "/etc/secret-volume"
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/bash", "-c", "mkdir -p ~/.ssh && cp /etc/secret-volume/ssh-publickey ~/.ssh/authorized_keys && sudo service ssh restart"]
+
 
 # Specify the pod type for the ray head node (as configured below).
 head_node_type: head_node

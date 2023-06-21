@@ -60,7 +60,9 @@ def bootstrap_kubernetes(config):
         namespace = _configure_namespace(config["provider"])
 
     _configure_services(namespace, config["provider"])
+
     _configure_sshjumphost_services(namespace, config["provider"])
+    _configure_sshjumphost_node(namespace, config["provider"])
 
     if not config["provider"].get("_operator"):
         # These steps are unecessary when using the Operator.
@@ -299,6 +301,32 @@ def _configure_autoscaler_role_binding(namespace, provider_config):
     logger.info(log_prefix + not_found_msg(binding_field, name))
     kubernetes.auth_api().create_namespaced_role_binding(namespace, binding)
     logger.info(log_prefix + created_msg(binding_field, name))
+
+
+def _configure_sshjumphost_node(namespace, provider_config):
+    node_field = "ssh_jumphost_node"
+    if node_field not in provider_config:
+        logger.info(log_prefix + not_provided_msg(node_field))
+        return
+    pod_spec = provider_config[node_field]
+    if "namespace" not in pod_spec["metadata"]:
+        pod_spec["metadata"]["namespace"] = namespace
+    elif pod_spec["metadata"]["namespace"] != namespace:
+        raise InvalidNamespaceError(node_field, namespace)
+
+    name = pod_spec["metadata"]["name"]
+    field_selector = "metadata.name={}".format(name)
+    pod_specs = (kubernetes.core_api().list_namespaced_pod(
+        namespace, field_selector=field_selector).items)
+    if len(pod_specs) > 0:
+        assert len(pod_specs) == 1
+        logger.info(log_prefix + using_existing_msg("pod", name))
+        return
+
+    else:
+        logger.info(log_prefix + not_found_msg("pod", name))
+        kubernetes.core_api().create_namespaced_pod(namespace, pod_spec)
+        logger.info(log_prefix + created_msg("pod", name))
 
 
 def _configure_sshjumphost_services(namespace, provider_config):
