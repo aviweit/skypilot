@@ -8,7 +8,7 @@ from uuid import uuid4
 from sky.adaptors import kubernetes
 from sky.skylet.providers.kubernetes import get_head_ssh_port
 from sky.skylet.providers.kubernetes import config
-from ray.autoscaler._private.command_runner import SSHCommandRunner
+from ray.autoscaler._private.command_runner import SSHCommandRunner, SSHOptions
 from ray.autoscaler._private.cli_logger import cli_logger
 from ray.autoscaler.node_provider import NodeProvider
 from ray.autoscaler.tags import NODE_KIND_HEAD, TAG_RAY_CLUSTER_NAME, TAG_RAY_NODE_KIND
@@ -26,7 +26,24 @@ def set_port(self, port):
     self.ssh_options.arg_dict["Port"] = port
 
 
+# Monkey patch SSHoptions Runner to allow specifying -J
+def to_ssh_options_list(self, *, timeout=60):
+    self.arg_dict["ConnectTimeout"] = "{}s".format(timeout)
+    ssh_key_option = ["-i", self.ssh_key] if self.ssh_key else []
+    ssh_key_option = ssh_key_option + ["-J", '172.31.3.2:31277']
+    return ssh_key_option + [
+        x
+        for y in (
+            ["-o", "{}={}".format(k, v)]
+            for k, v in self.arg_dict.items()
+            if v is not None
+        )
+        for x in y
+    ]
+
+
 SSHCommandRunner.set_port = set_port
+SSHOptions.to_ssh_options_list = to_ssh_options_list
 
 
 def head_service_selector(cluster_name: str) -> Dict[str, str]:
