@@ -26,24 +26,29 @@ def set_port(self, port):
     self.ssh_options.arg_dict["Port"] = port
 
 
-# Monkey patch SSHoptions Runner to allow specifying -J
-def to_ssh_options_list(self, *, timeout=60):
-    self.arg_dict["ConnectTimeout"] = "{}s".format(timeout)
-    ssh_key_option = ["-i", self.ssh_key] if self.ssh_key else []
-    ssh_key_option = ssh_key_option + ["-J", '172.31.3.2:31277']
-    return ssh_key_option + [
-        x
-        for y in (
-            ["-o", "{}={}".format(k, v)]
-            for k, v in self.arg_dict.items()
-            if v is not None
-        )
-        for x in y
-    ]
+def set_proxy_command(self, proxy_command):
+    self.ssh_options.arg_dict["ProxyCommand"] = proxy_command
+
+# # Monkey patch SSHoptions Runner to allow specifying -J
+# def to_ssh_options_list(self, *, timeout=60):
+#     self.arg_dict["ConnectTimeout"] = "{}s".format(timeout)
+#     ssh_key_option = ["-i", self.ssh_key] if self.ssh_key else []
+#     ssh_key_option = ssh_key_option + ["-J", '172.31.3.2:31277']
+#     return ssh_key_option + [
+#         x
+#         for y in (
+#             ["-o", "{}={}".format(k, v)]
+#             for k, v in self.arg_dict.items()
+#             if v is not None
+#         )
+#         for x in y
+#     ]
 
 
 SSHCommandRunner.set_port = set_port
-SSHOptions.to_ssh_options_list = to_ssh_options_list
+SSHCommandRunner.set_proxy_command = set_proxy_command
+
+# SSHOptions.to_ssh_options_list = to_ssh_options_list
 
 
 def head_service_selector(cluster_name: str) -> Dict[str, str]:
@@ -336,6 +341,8 @@ class KubernetesNodeProvider(NodeProvider):
         with open('/tmp/log.txt', 'a') as f:
             f.write(f'{node_id} port: {port}\n')
         command_runner.set_port(port)
+        _proxy_cmd = f'ssh -tt -i {command_runner.ssh_private_key} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  -p 32608 -W %h:%p sky@172.31.3.2' 
+        command_runner.set_proxy_command("'" + _proxy_cmd + "'")
         return command_runner
 
     @staticmethod
