@@ -959,6 +959,7 @@ def write_cluster_config(
                 'gcp_project_id': gcp_project_id,
 
                 # Kubernetes only:
+                'skypilot_k8s_sshjumphost': f'sky-sshjumper-{common_utils.get_user_hash()}',
                 'skypilot_k8s_image': k8s_image,
                 'skypilot_k8s_sshjumphost_image': k8s_sshjumphost_image,
                 'ssh_key_secret_name': ssh_key_secret_name,
