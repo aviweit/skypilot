@@ -139,6 +139,9 @@ class Kubernetes(clouds.Cloud):
     IMAGE = 'us-central1-docker.pkg.dev/' \
             'skypilot-375900/skypilotk8s/skypilot:latest'
 
+    # TODO (weit) push to public registry
+    IMAGE_SSH_JUMPHOST = '172.31.3.13:5000/sshjumphost:latest'
+
     @classmethod
     def _cloud_unsupported_features(
             cls) -> Dict[clouds.CloudImplementationFeatures, str]:

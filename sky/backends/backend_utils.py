@@ -858,12 +858,11 @@ def write_cluster_config(
     credentials = sky_check.get_cloud_credential_file_mounts()
 
     k8s_image = None
-    k8s_sshjumphost_image = None
+    k8s_image_sshjumphost = None
     ssh_key_secret_name = None
     if isinstance(cloud, clouds.Kubernetes):
         k8s_image = cloud.IMAGE
-        # TODO (weit) remove hard code. Can we reuse ray pod image?
-        k8s_sshjumphost_image = '172.31.3.13:5000/sshjumphost:latest'
+        k8s_image_sshjumphost = cloud.IMAGE_SSH_JUMPHOST
         ssh_key_secret_name = cloud.SKY_SSH_KEY_SECRET_NAME
 
     ip_list = None
@@ -962,7 +961,7 @@ def write_cluster_config(
                 # Kubernetes only:
                 'skypilot_k8s_sshjumphost': f'sky-sshjumper-{common_utils.get_user_hash()}',
                 'skypilot_k8s_image': k8s_image,
-                'skypilot_k8s_sshjumphost_image': k8s_sshjumphost_image,
+                'skypilot_k8s_image_sshjumphost': k8s_image_sshjumphost,
                 'ssh_key_secret_name': ssh_key_secret_name,
 
                 # Port of Ray (GCS server).

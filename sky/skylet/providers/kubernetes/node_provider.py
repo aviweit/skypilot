@@ -324,8 +324,8 @@ class KubernetesNodeProvider(NodeProvider):
         with open('/tmp/log.txt', 'a') as f:
             f.write(f'{node_id} port: {port}\n')
         command_runner.set_port(port)
-        # TODO (weit) remove hard code
-        _proxy_cmd = f'ssh -tt -i {command_runner.ssh_private_key} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  -p 30022 -W %h:%p sky@172.31.3.2' 
+        external_ip = self.external_ip(node_id)
+        _proxy_cmd = f'ssh -tt -i {command_runner.ssh_private_key} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  -p 30022 -W %h:%p sky@{external_ip}' 
         command_runner.set_proxy_command("'" + _proxy_cmd + "'")
         return command_runner
 

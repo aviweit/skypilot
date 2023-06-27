@@ -145,7 +145,7 @@ provider:
         containers:
         - name: sky-sshjumper
           imagePullPolicy: Always
-          image: {{skypilot_k8s_sshjumphost_image}}
+          image: {{skypilot_k8s_image_sshjumphost}}
           # Do not change this command - it keeps the pod alive until it is
           # explicitly killed.
           command: ["/bin/bash", "-c", "--"]
@@ -377,7 +377,7 @@ auth:
   ssh_user: sky
   ssh_private_key: {{ssh_private_key}}
   # TODO (weit) remove hard code
-  ssh_proxy_command: "ssh -tt -i /home/weit/.ssh/sky-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  -p 30022 -W %h:%p sky@172.31.3.2"
+  ssh_proxy_command: "ssh -tt -i {{ssh_private_key}} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  -p 30022 -W %h:%p sky@172.31.3.2"
 
 # These fields are required for external cloud providers.
 head_setup_commands: []
