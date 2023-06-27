@@ -325,6 +325,7 @@ def _configure_sshjumphost_node(namespace, provider_config):
 
     else:
         logger.info(log_prefix + not_found_msg("pod", name))
+        # TODO (weit) wait until available
         kubernetes.core_api().create_namespaced_pod(namespace, pod_spec)
         logger.info(log_prefix + created_msg("pod", name))
 

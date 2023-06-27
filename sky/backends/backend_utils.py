@@ -862,6 +862,7 @@ def write_cluster_config(
     ssh_key_secret_name = None
     if isinstance(cloud, clouds.Kubernetes):
         k8s_image = cloud.IMAGE
+        # TODO (weit) remove hard code. Can we reuse ray pod image?
         k8s_sshjumphost_image = '172.31.3.13:5000/sshjumphost:latest'
         ssh_key_secret_name = cloud.SKY_SSH_KEY_SECRET_NAME
 
