@@ -1,6 +1,7 @@
 import copy
 import logging
 import math
+import time
 import re
 
 from sky.adaptors import kubernetes
@@ -304,6 +305,8 @@ def _configure_autoscaler_role_binding(namespace, provider_config):
 
 
 def _configure_sshjumphost_node(namespace, provider_config):
+    # TODO (weit) not a good practice to create and poll runtimes here since
+    # this blocks other sky commands beyond 'sky launch'
     node_field = "ssh_jumphost_node"
     if node_field not in provider_config:
         logger.info(log_prefix + not_provided_msg(node_field))
@@ -316,18 +319,54 @@ def _configure_sshjumphost_node(namespace, provider_config):
 
     name = pod_spec["metadata"]["name"]
     field_selector = "metadata.name={}".format(name)
+
+    should_create = True
     pod_specs = (kubernetes.core_api().list_namespaced_pod(
         namespace, field_selector=field_selector).items)
     if len(pod_specs) > 0:
         assert len(pod_specs) == 1
-        logger.info(log_prefix + using_existing_msg("pod", name))
-        return
+        should_create = False
+        if pod_specs[0].status.phase == "Running":
+            logger.info(log_prefix + using_existing_msg("pod", name))
+            return
+        else:
+            logger.info(log_prefix + f"found ssh jump pod: {name} not in 'Running' state")
 
-    else:
+    if should_create:
         logger.info(log_prefix + not_found_msg("pod", name))
-        # TODO (weit) wait until available
         kubernetes.core_api().create_namespaced_pod(namespace, pod_spec)
         logger.info(log_prefix + created_msg("pod", name))
+
+    # TODO(romilb): Make timeout configurable in Kubernetes cloud class.
+    TIMEOUT = 60
+    start = time.time()
+    while True:
+        logger.info(log_prefix + f"Wait for ssh jump node: {name} to become ready..")
+        if time.time() - start > TIMEOUT:
+            raise KubernetesError(
+                "Timed out while waiting for ssh jump node to start. ")
+
+        is_ready = True
+        _p = kubernetes.core_api().read_namespaced_pod(name, namespace)
+        if _p.status.phase == "Pending":
+            # Check conditions for more detailed status
+            if _p.status.conditions is not None:
+                for condition in _p.status.conditions:
+                    if condition.reason == 'ContainerCreating':
+                        # Container is creating, so we can assume resources
+                        # have been allocated. Safe to exit.
+                        break
+                    else:
+                        # Pod is pending but not in 'ContainerCreating' state
+                        is_ready = False
+                        break
+            else:
+                # No conditions also indicates that the pod is pending
+                is_ready = False
+
+        if is_ready:
+            break
+        time.sleep(1)
 
 
 def _configure_sshjumphost_services(namespace, provider_config):
