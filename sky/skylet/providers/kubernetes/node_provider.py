@@ -326,7 +326,7 @@ class KubernetesNodeProvider(NodeProvider):
         command_runner.set_port(port)
         external_ip = self.external_ip(node_id)
         _proxy_cmd = f'ssh -tt -i {command_runner.ssh_private_key} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes  -p 30022 -W %h:%p sky@{external_ip}' 
-        command_runner.set_proxy_command("'" + _proxy_cmd + "'")
+        command_runner.set_proxy_command(_proxy_cmd)
         return command_runner
 
     @staticmethod
