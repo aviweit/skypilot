@@ -2131,9 +2131,9 @@ class CloudVmRayResourceHandle(backends.backend.ResourceHandle):
         self.launched_resources = self.launched_resources.copy(region=region)
 
     def _update_stable_ssh_ports(self, max_attempts: int = 1) -> None:
+        # TODO (weit) need if isinstance?
         if isinstance(self.launched_resources.cloud, clouds.Kubernetes):
-            head_port = backend_utils.get_head_ssh_port(
-                self, use_cache=False, max_attempts=max_attempts)
+            head_port = 22
             # TODO(romilb): Multinode doesn't work with Kubernetes yet.
             worker_ports = [22] * self.launched_nodes
             ports = [head_port] + worker_ports

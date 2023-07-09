@@ -10,6 +10,8 @@ import time
 from typing import Any, Dict, Tuple
 import uuid
 
+from urllib.parse import urlparse
+
 import colorama
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -18,7 +20,7 @@ import yaml
 
 from sky import clouds
 from sky import sky_logging
-from sky.adaptors import gcp, ibm
+from sky.adaptors import gcp, ibm, kubernetes
 from sky.utils import common_utils
 from sky.utils import subprocess_utils
 from sky.utils import ux_utils
@@ -474,5 +476,117 @@ def setup_kubernetes_authentication(config: Dict[str, Any]) -> Dict[str, Any]:
     file_mounts = config['file_mounts']
     file_mounts[PUBLIC_SSH_KEY_PATH] = PUBLIC_SSH_KEY_PATH
     config['file_mounts'] = file_mounts
+
+    pod_spec = {
+        'apiVersion': 'v1',
+        'kind': 'Pod',
+        'metadata': {
+            # TODO (weit) hard code
+            'name': 'sshjump-3695cc76',
+            'labels': {
+                'component': 'sshjump-3695cc76'
+            }
+        },
+        'spec': {
+            'volumes': [
+                {
+                    'name': 'secret-volume',
+                    # TODO (weit)
+                    'secret': {'secretName': 'sky-ssh-3695cc76'}
+                }
+            ],
+            'containers': [
+                {
+                    'name': 'sky-sshjumper',
+                    'imagePullPolicy': 'Always',
+                    # TODO (weit)
+                    'image': '172.31.3.13:5000/sshjumphost:latest',
+                    'command': ["/bin/bash", "-c", "--"],
+                    'args': ['trap : TERM INT; sleep infinity & wait;'],
+                    'ports':[ 
+                        {
+                            'containerPort': 22
+                        }
+                    ],
+                    'volumeMounts': [
+                        {
+                            'name': 'secret-volume',
+                            'readOnly': True,
+                            'mountPath': "/etc/secret-volume"
+                        }
+                    ],
+                    'lifecycle': {
+                        'postStart': {
+                            'exec': {
+                                'command': ["/bin/bash", "-c", "mkdir -p ~/.ssh && cp /etc/secret-volume/ssh-publickey ~/.ssh/authorized_keys && sudo service ssh restart"]
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }
+    service_spec = {
+        'apiVersion': 'v1',
+        'kind': 'Service',
+        'metadata': {
+            # TODO (weit)
+            'name': 'sshjump-3695cc76',
+        },
+        'spec': {
+            'type': 'NodePort',
+            'selector': {
+                # TODO (weit)
+                'component': 'sshjump-3695cc76'
+            },
+            'ports': [
+                {
+                    'protocol': 'TCP',
+                    'port': 22,
+                    'targetPort': 22
+                }
+            ]            
+         }
+    }
+
+    # TODO (weit) namespace
+    try:
+        kubernetes.core_api().create_namespaced_pod('default', pod_spec)
+        kubernetes.core_api().create_namespaced_service('default', service_spec)
+    except:
+        # TODO (weit)
+        pass
+    ssh_jump_port = clouds.Kubernetes.get_port('sshjump-3695cc76', 'default')
+    # proj_dir = os.path.dirname((os.path.dirname( os.path.abspath(__file__))))
+    # cmd = f'kubectl create -f {proj_dir}/sky/skylet/providers/kubernetes/ssh_jump.yaml'
+    # try:
+    #     subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+    # except subprocess.CalledProcessError as e:
+    #     output = e.output.decode('utf-8')
+    #     if 'already exists' in output:
+    #         logger.warning(
+    #             f'Pod sshjump already exists in the cluster, using it...')
+    #         pass
+    #     else:
+    #         raise e
+
+    # TODO (weit) identical to k8s provider method
+    def _external_ip():
+        #
+        # Return the IP address of the first node with an external IP
+        nodes = kubernetes.core_api().list_node().items
+        for node in nodes:
+            if node.status.addresses:
+                for address in node.status.addresses:
+                    if address.type == "ExternalIP":
+                        return address.address
+        # If no external IP is found, use the API server IP
+        api_host = kubernetes.core_api().api_client.configuration.host
+        parsed_url = urlparse(api_host)
+        return parsed_url.hostname
+
+    config['auth']['ssh_proxy_command'] = \
+        'ssh -tt -i {privkey} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -p {ingress} -W %h:%p sky@{ipaddress}'.format(
+        privkey=PRIVATE_SSH_KEY_PATH, ingress=ssh_jump_port, ipaddress=_external_ip())
 
     return config
