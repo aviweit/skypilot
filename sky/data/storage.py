@@ -2101,7 +2101,7 @@ class MINIOStore(AbstractStore):
         """
         try:
             if isinstance(self.source, list):
-                self.batch_aws_rsync(self.source, create_dirs=True)
+                self.batch_minio_rsync(self.source, create_dirs=True)
             elif self.source is not None:
                 if self.source.startswith('s3://'):
                     raise Exception('Not supported from s3://')
@@ -2112,7 +2112,7 @@ class MINIOStore(AbstractStore):
                 elif self.source.startswith('minio://'):
                     pass
                 else:
-                    self.batch_aws_rsync([self.source])
+                    self.batch_minio_rsync([self.source])
         except exceptions.StorageUploadError:
             raise
         except Exception as e:
