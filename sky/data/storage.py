@@ -2304,12 +2304,10 @@ class MINIOStore(AbstractStore):
         Raises:
           StorageBucketCreateError: If bucket creation fails.
         """
-        r2_client = self.client
+        minio_client = self.client
         try:
-            if region is None:
-                r2_client.create_bucket(Bucket=bucket_name)
-            else:
-                raise Exception('Region is not supported in Minio currently')
+            # NOTE (weit) region not currently relevant
+            minio_client.create_bucket(Bucket=bucket_name)
         except aws.botocore_exceptions().ClientError as e:
             with ux_utils.print_exception_no_traceback():
                 raise exceptions.StorageBucketCreateError(
