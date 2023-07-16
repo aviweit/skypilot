@@ -936,6 +936,8 @@ def _maybe_translate_local_file_mounts_and_sync_up(task: task_lib.Task):
                 storage_obj.source = f'gs://{storage_obj.name}'
             elif store_type == storage_lib.StoreType.R2:
                 storage_obj.source = f'r2://{storage_obj.name}'
+            elif store_type == storage_lib.StoreType.MINIO:
+                storage_obj.source = f'minio://{storage_obj.name}'
             else:
                 with ux_utils.print_exception_no_traceback():
                     raise exceptions.NotSupportedError(

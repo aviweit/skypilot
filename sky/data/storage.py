@@ -15,6 +15,7 @@ from sky import clouds
 from sky.adaptors import aws
 from sky.adaptors import gcp
 from sky.adaptors import cloudflare
+from sky.adaptors import minio
 from sky.backends import backend_utils
 from sky.utils import schemas
 from sky.data import data_transfer
@@ -81,6 +82,7 @@ class StoreType(enum.Enum):
     GCS = 'GCS'
     AZURE = 'AZURE'
     R2 = 'R2'
+    MINIO = 'MINIO'
 
     @classmethod
     def from_cloud(cls, cloud: clouds.Cloud) -> 'StoreType':
@@ -101,6 +103,8 @@ class StoreType(enum.Enum):
             return StoreType.GCS
         elif isinstance(store, R2Store):
             return StoreType.R2
+        elif isinstance(store, MINIOStore):
+            return StoreType.MINIO
         else:
             with ux_utils.print_exception_no_traceback():
                 raise ValueError(f'Unknown store type: {store}')
@@ -138,6 +142,8 @@ def get_store_prefix(storetype: StoreType) -> str:
     # R2 storages use 's3://' as a prefix for various aws cli commands
     elif storetype == StoreType.R2:
         return 's3://'
+    elif storetype == StoreType.MINIO:
+        return 'minio://'
     elif storetype == StoreType.AZURE:
         with ux_utils.print_exception_no_traceback():
             raise ValueError('Azure Blob Storage is not supported yet.')
@@ -462,6 +468,11 @@ class Storage(object):
                         s_metadata,
                         source=self.source,
                         sync_on_reconstruction=self.sync_on_reconstruction)
+                elif s_type == StoreType.MINIO:
+                    store = MINIOStore.from_metadata(
+                        s_metadata,
+                        source=self.source,
+                        sync_on_reconstruction=self.sync_on_reconstruction)
                 else:
                     with ux_utils.print_exception_no_traceback():
                         raise ValueError(f'Unknown store type: {s_type}')
@@ -500,6 +511,8 @@ class Storage(object):
                         self.add_store(StoreType.GCS)
                     elif self.source.startswith('r2://'):
                         self.add_store(StoreType.R2)
+                    elif self.source.startswith('minio://'):
+                        self.add_store(StoreType.MINIO)
 
     @staticmethod
     def _validate_source(
@@ -707,6 +720,8 @@ class Storage(object):
             store_cls = GcsStore
         elif store_type == StoreType.R2:
             store_cls = R2Store
+        elif store_type == StoreType.MINIO:
+            store_cls = MINIOStore
         else:
             with ux_utils.print_exception_no_traceback():
                 raise exceptions.StorageSpecError(
@@ -2034,5 +2049,315 @@ class R2Store(AbstractStore):
 
         # Wait until bucket deletion propagates on AWS servers
         while data_utils.verify_r2_bucket(bucket_name):
+            time.sleep(0.1)
+        return True
+
+
+class MINIOStore(AbstractStore):
+    _ACCESS_DENIED_MESSAGE = 'Access Denied'
+
+    def __init__(self,
+                 name: str,
+                 source: str,
+                 region: Optional[str] = 'auto',
+                 is_sky_managed: Optional[bool] = None,
+                 sync_on_reconstruction: Optional[bool] = True):
+        self.client: 'boto3.client.Client'
+        self.bucket: 'StorageHandle'
+        super().__init__(name, source, region, is_sky_managed,
+                         sync_on_reconstruction)
+
+    def _validate(self):
+        pass
+
+    def initialize(self):
+        """Initializes the R2 store object on the cloud.
+
+        Initialization involves fetching bucket if exists, or creating it if
+        it does not.
+
+        Raises:
+          StorageBucketCreateError: If bucket creation fails
+          StorageBucketGetError: If fetching existing bucket fails
+          StorageInitError: If general initialization fails.
+        """
+        self.client = data_utils.create_minio_client(self.region)
+        self.bucket, is_new_bucket = self._get_bucket()
+        if self.is_sky_managed is None:
+            # If is_sky_managed is not specified, then this is a new storage
+            # object (i.e., did not exist in global_user_state) and we should
+            # set the is_sky_managed property.
+            # If is_sky_managed is specified, then we take no action.
+            self.is_sky_managed = is_new_bucket
+
+    def upload(self):
+        """Uploads source to store bucket.
+
+        Upload must be called by the Storage handler - it is not called on
+        Store initialization.
+
+        Raises:
+            StorageUploadError: if upload fails.
+        """
+        try:
+            if isinstance(self.source, list):
+                self.batch_aws_rsync(self.source, create_dirs=True)
+            elif self.source is not None:
+                if self.source.startswith('s3://'):
+                    raise Exception('Not supported from s3://')
+                elif self.source.startswith('gs://'):
+                    raise Exception('Not supported from gs://')
+                elif self.source.startswith('r2://'):
+                    raise Exception('Not supported from r2://')
+                elif self.source.startswith('minio://'):
+                    pass
+                else:
+                    self.batch_aws_rsync([self.source])
+        except exceptions.StorageUploadError:
+            raise
+        except Exception as e:
+            raise exceptions.StorageUploadError(
+                f'Upload failed for store {self.name}') from e
+
+    def delete(self) -> None:
+        deleted_by_skypilot = self._delete_minio_bucket(self.name)
+        if deleted_by_skypilot:
+            msg_str = f'Deleted MINIO bucket {self.name}.'
+        else:
+            msg_str = f'MINIO bucket {self.name} may have been deleted ' \
+                      f'externally. Removing from local state.'
+        logger.info(f'{colorama.Fore.GREEN}{msg_str}'
+                    f'{colorama.Style.RESET_ALL}')
+
+    def get_handle(self) -> StorageHandle:
+        return cloudflare.resource('s3').Bucket(self.name)
+
+    def batch_minio_rsync(self,
+                        source_path_list: List[Path],
+                        create_dirs: bool = False) -> None:
+        """Invokes aws s3 sync to batch upload a list of local paths to Minio
+
+        AWS Sync by default uses 10 threads to upload files to the bucket.  To
+        increase parallelism, modify max_concurrent_requests in your aws config
+        file (Default path: ~/.aws/config).
+
+        Since aws s3 sync does not support batch operations, we construct
+        multiple commands to be run in parallel.
+
+        Args:
+            source_path_list: List of paths to local files or directories
+            create_dirs: If the local_path is a directory and this is set to
+                False, the contents of the directory are directly uploaded to
+                root of the bucket. If the local_path is a directory and this is
+                set to True, the directory is created in the bucket root and
+                contents are uploaded to it.
+        """
+
+        def get_file_sync_command(base_dir_path, file_names):
+            includes = ' '.join(
+                [f'--include "{file_name}"' for file_name in file_names])
+            endpoint_url = minio.create_endpoint()
+            sync_command = ('AWS_SHARED_CREDENTIALS_FILE='
+                            f'{minio.MINIO_CREDENTIALS_PATH} '
+                            'aws s3 sync --no-follow-symlinks --exclude="*" '
+                            f'{includes} {base_dir_path} '
+                            f's3://{self.name} '
+                            f'--endpoint {endpoint_url} '
+                            f'--profile={minio.MINIO_PROFILE_NAME}')
+            return sync_command
+
+        def get_dir_sync_command(src_dir_path, dest_dir_name):
+            # we exclude .git directory from the sync
+            endpoint_url = minio.create_endpoint()
+            sync_command = (
+                'AWS_SHARED_CREDENTIALS_FILE='
+                f'{minio.MINIO_CREDENTIALS_PATH} '
+                'aws s3 sync --no-follow-symlinks --exclude ".git/*" '
+                f'{src_dir_path} '
+                f's3://{self.name}/{dest_dir_name} '
+                f'--endpoint {endpoint_url} '
+                f'--profile={minio.MINIO_PROFILE_NAME}')
+            return sync_command
+
+        # Generate message for upload
+        if len(source_path_list) > 1:
+            source_message = f'{len(source_path_list)} paths'
+        else:
+            source_message = source_path_list[0]
+
+        with log_utils.safe_rich_status(
+                f'[bold cyan]Syncing '
+                f'[green]{source_message}[/] to [green]minio://{self.name}/[/]'):
+            data_utils.parallel_upload(
+                source_path_list,
+                get_file_sync_command,
+                get_dir_sync_command,
+                self.name,
+                self._ACCESS_DENIED_MESSAGE,
+                create_dirs=create_dirs,
+                max_concurrent_uploads=_MAX_CONCURRENT_UPLOADS)
+
+    def _transfer_to_minio(self) -> None:
+        pass
+    
+    def _get_bucket(self) -> Tuple[StorageHandle, bool]:
+        """Obtains the R2 bucket.
+
+        If the bucket exists, this method will return the bucket.
+        If the bucket does not exist, there are three cases:
+          1) Raise an error if the bucket source starts with s3://
+          2) Return None if bucket has been externally deleted and
+             sync_on_reconstruction is False
+          3) Create and return a new bucket otherwise
+
+        Raises:
+            StorageBucketCreateError: If creating the bucket fails
+            StorageBucketGetError: If fetching a bucket fails
+        """
+        _minio = minio.resource('s3')
+        bucket = _minio.Bucket(self.name)
+        endpoint_url = cloudflare.create_endpoint()
+        try:
+            # Try Public bucket case.
+            # This line does not error out if the bucket is an external public
+            # bucket or if it is a user's bucket that is publicly
+            # accessible.
+            self.client.head_bucket(Bucket=self.name)
+            return bucket, False
+        except aws.botocore_exceptions().ClientError as e:
+            error_code = e.response['Error']['Code']
+            # AccessDenied error for buckets that are private and not owned by
+            # user.
+            if error_code == '403':
+                command = ('AWS_SHARED_CREDENTIALS_FILE='
+                           f'{minio.MINIO_CREDENTIALS_PATH} '
+                           f'aws s3 ls s3://{self.name} '
+                           f'--endpoint {endpoint_url} '
+                           f'--profile={minio.MINIO_PROFILE_NAME}')
+                with ux_utils.print_exception_no_traceback():
+                    raise exceptions.StorageBucketGetError(
+                        _BUCKET_FAIL_TO_CONNECT_MESSAGE.format(name=self.name) +
+                        f' To debug, consider running `{command}`.') from e
+
+        if isinstance(self.source, str) and self.source.startswith('minio://'):
+            with ux_utils.print_exception_no_traceback():
+                raise exceptions.StorageBucketGetError(
+                    'Attempted to connect to a non-existent bucket: '
+                    f'{self.source}. Consider using '
+                    '`AWS_SHARED_CREDENTIALS_FILE='
+                    f'{minio.MINIO_CREDENTIALS_PATH} aws s3 ls '
+                    f's3://{self.name} '
+                    f'--endpoint {endpoint_url} '
+                    f'--profile={minio.MINIO_PROFILE_NAME}\' '
+                    'to debug.')
+
+        # If bucket cannot be found in both private and public settings,
+        # the bucket is to be created by Sky. However, skip creation if
+        # Store object is being reconstructed for deletion.
+        if self.sync_on_reconstruction:
+            bucket = self._create_minio_bucket(self.name)
+            return bucket, True
+        else:
+            return None, False
+
+    def _download_file(self, remote_path: str, local_path: str) -> None:
+        """Downloads file from remote to local on minio bucket
+        using the boto3 API
+
+        Args:
+          remote_path: str; Remote path on R2 bucket
+          local_path: str; Local path on user's device
+        """
+        self.bucket.download_file(remote_path, local_path)
+
+    def mount_command(self, mount_path: str) -> str:
+        """Returns the command to mount the bucket to the mount_path.
+
+        Uses goofys to mount the bucket.
+
+        Args:
+          mount_path: str; Path to mount the bucket to.
+        """
+        install_cmd = ('sudo wget -nc https://github.com/romilbhardwaj/goofys/'
+                       'releases/download/0.24.0-romilb-upstream/goofys '
+                       '-O /usr/local/bin/goofys && '
+                       'sudo chmod +x /usr/local/bin/goofys')
+        endpoint_url = minio.create_endpoint()
+        mount_cmd = (
+            f'AWS_SHARED_CREDENTIALS_FILE={minio.MINIO_CREDENTIALS_PATH} '
+            f'AWS_PROFILE={minio.MINIO_PROFILE_NAME} goofys -o allow_other '
+            f'--stat-cache-ttl {self._STAT_CACHE_TTL} '
+            f'--type-cache-ttl {self._TYPE_CACHE_TTL} '
+            f'--endpoint {endpoint_url} '
+            f'{self.bucket.name} {mount_path}')
+        return mounting_utils.get_mounting_command(mount_path, install_cmd,
+                                                   mount_cmd)
+
+    def _create_minio_bucket(self,
+                          bucket_name: str,
+                          region='auto') -> StorageHandle:
+        """Creates Minio bucket with specific name in specific region
+
+        Args:
+          bucket_name: str; Name of bucket
+          region: str; Region name, r2 automatically sets region
+        Raises:
+          StorageBucketCreateError: If bucket creation fails.
+        """
+        r2_client = self.client
+        try:
+            if region is None:
+                r2_client.create_bucket(Bucket=bucket_name)
+            else:
+                raise Exception('Region is not supported in Minio currently')
+        except aws.botocore_exceptions().ClientError as e:
+            with ux_utils.print_exception_no_traceback():
+                raise exceptions.StorageBucketCreateError(
+                    f'Attempted to create a bucket '
+                    f'{self.name} but failed.') from e
+        return minio.resource('minio').Bucket(bucket_name)
+
+    def _delete_minio_bucket(self, bucket_name: str) -> bool:
+        """Deletes MINIO bucket, including all objects in bucket
+
+        Args:
+          bucket_name: str; Name of bucket
+
+        Returns:
+         bool; True if bucket was deleted, False if it was deleted externally.
+        """
+        # Deleting objects is very slow programatically
+        # (i.e. bucket.objects.all().delete() is slow).
+        # In addition, standard delete operations (i.e. via `aws s3 rm`)
+        # are slow, since AWS puts deletion markers.
+        # https://stackoverflow.com/questions/49239351/why-is-it-so-much-slower-to-delete-objects-in-aws-s3-than-it-is-to-create-them
+        # The fastest way to delete is to run `aws s3 rb --force`,
+        # which removes the bucket by force.
+        endpoint_url = minio.create_endpoint()
+        remove_command = (
+            f'AWS_SHARED_CREDENTIALS_FILE={minio.MINIO_CREDENTIALS_PATH} '
+            f'aws s3 rb s3://{bucket_name} --force '
+            f'--endpoint {endpoint_url} '
+            f'--profile={minio.MINIO_PROFILE_NAME}')
+        try:
+            with log_utils.safe_rich_status(
+                    f'[bold cyan]Deleting MINIO bucket {bucket_name}[/]'):
+                subprocess.check_output(remove_command,
+                                        stderr=subprocess.STDOUT,
+                                        shell=True)
+        except subprocess.CalledProcessError as e:
+            if 'NoSuchBucket' in e.output.decode('utf-8'):
+                logger.debug(
+                    _BUCKET_EXTERNALLY_DELETED_DEBUG_MESSAGE.format(
+                        bucket_name=bucket_name))
+                return False
+            else:
+                logger.error(e.output)
+                with ux_utils.print_exception_no_traceback():
+                    raise exceptions.StorageBucketDeleteError(
+                        f'Failed to delete MINIO bucket {bucket_name}.')
+
+        # Wait until bucket deletion propagates on AWS servers
+        while data_utils.verify_minio_bucket(bucket_name):
             time.sleep(0.1)
         return True

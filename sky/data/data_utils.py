@@ -8,7 +8,7 @@ import urllib.parse
 
 from sky import exceptions
 from sky import sky_logging
-from sky.adaptors import aws, gcp, cloudflare
+from sky.adaptors import aws, gcp, cloudflare, minio
 from sky.utils import ux_utils
 
 Client = Any
@@ -94,6 +94,15 @@ def create_r2_client(region: str = 'auto') -> Client:
     return cloudflare.client('s3', region)
 
 
+def create_minio_client(region: str = 'auto') -> Client:
+    """Helper method that connects to Boto3 client for Minio Bucket
+
+    Args:
+      region: str; Region for MINIO is set to auto
+    """
+    return minio.client('s3', region)
+
+
 def verify_r2_bucket(name: str) -> bool:
     """Helper method that checks if the R2 bucket exists
 
@@ -103,6 +112,17 @@ def verify_r2_bucket(name: str) -> bool:
     r2 = cloudflare.resource('s3')
     bucket = r2.Bucket(name)
     return bucket in r2.buckets.all()
+
+
+def verify_minio_bucket(name: str) -> bool:
+    """Helper method that checks if the MINIO bucket exists
+
+    Args:
+      name: str; Name of R2 Bucket (without r2:// prefix)
+    """
+    _minio = minio.resource('s3')
+    bucket = _minio.Bucket(name)
+    return bucket in _minio.buckets.all()
 
 
 def is_cloud_store_url(url):
