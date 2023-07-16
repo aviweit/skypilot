@@ -2216,7 +2216,7 @@ class MINIOStore(AbstractStore):
         """
         _minio = minio.resource('s3')
         bucket = _minio.Bucket(self.name)
-        endpoint_url = cloudflare.create_endpoint()
+        endpoint_url = minio.create_endpoint()
         try:
             # Try Public bucket case.
             # This line does not error out if the bucket is an external public
