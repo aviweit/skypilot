@@ -246,9 +246,8 @@ class MinioCloudStorage(CloudStorage):
         # To increase parallelism, modify max_concurrent_requests in your
         # aws config file (Default path: ~/.aws/config).
         endpoint_url = minio.create_endpoint()
-        # TODO (weit)
         if 'minio://' in source:
-            source = source.replace('r2://', 's3://')
+            source = source.replace('minio://', 's3://')
         download_via_awscli = ('AWS_SHARED_CREDENTIALS_FILE='
                                f'{minio.MINIO_CREDENTIALS_PATH} '
                                'aws s3 sync --no-follow-symlinks '
