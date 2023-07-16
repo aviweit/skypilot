@@ -2313,7 +2313,7 @@ class MINIOStore(AbstractStore):
                 raise exceptions.StorageBucketCreateError(
                     f'Attempted to create a bucket '
                     f'{self.name} but failed.') from e
-        return minio.resource('minio').Bucket(bucket_name)
+        return minio.resource('s3').Bucket(bucket_name)
 
     def _delete_minio_bucket(self, bucket_name: str) -> bool:
         """Deletes MINIO bucket, including all objects in bucket
