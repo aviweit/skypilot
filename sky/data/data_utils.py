@@ -52,13 +52,13 @@ def split_r2_path(r2_path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def split_minio_path(r2_path: str) -> Tuple[str, str]:
+def split_minio_path(minio_path: str) -> Tuple[str, str]:
     """Splits MINIO Path into Bucket name and Relative Path to Bucket
 
     Args:
-      r2_path: str; R2 Path, e.g. r2://imagenet/train/
+      minio_path: str; minio Path, e.g. minio://imagenet/train/
     """
-    path_parts = r2_path.replace('minio://', '').split('/')
+    path_parts = minio_path.replace('minio://', '').split('/')
     bucket = path_parts.pop(0)
     key = '/'.join(path_parts)
     return bucket, key
@@ -130,7 +130,7 @@ def verify_minio_bucket(name: str) -> bool:
     """Helper method that checks if the MINIO bucket exists
 
     Args:
-      name: str; Name of R2 Bucket (without r2:// prefix)
+      name: str; Name of MINIO Bucket (without minio:// prefix)
     """
     _minio = minio.resource('s3')
     bucket = _minio.Bucket(name)
@@ -182,8 +182,8 @@ def parallel_upload(source_path_list: List[str],
                     max_concurrent_uploads: Optional[int] = None) -> None:
     """Helper function to run parallel uploads for a list of paths.
 
-    Used by S3Store, GCSStore, and R2Store to run rsync commands in parallel by
-    providing appropriate command generators.
+    Used by S3Store, GCSStore, R2Store and MINIOStore to run rsync commands in
+    parallel by providing appropriate command generators.
 
     Args:
         source_path_list: List of paths to local files or directories

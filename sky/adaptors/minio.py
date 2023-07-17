@@ -118,10 +118,10 @@ def resource(resource_name: str, **kwargs):
 
 @functools.lru_cache()
 def client(service_name: str, region):
-    """Create an CLOUDFLARE client of a certain service.
+    """Create an Minio client of a certain service.
 
     Args:
-        service_name: CLOUDFLARE service name (e.g., 's3').
+        service_name: MINIO service name (e.g., 's3').
         kwargs: Other options.
     """
     # Need to use the client retrieved from the per-thread session
@@ -199,7 +199,7 @@ def check_credentials() -> Tuple[bool, Optional[str]]:
 
 
 def minio_profile_in_aws_cred() -> bool:
-    """Checks if Minio MINIO profile is set in aws credentials"""
+    """Checks if MINIO profile is set in minio credentials"""
 
     profile_path = os.path.expanduser(MINIO_CREDENTIALS_PATH)
     minio_profile_exists = False
@@ -213,7 +213,7 @@ def minio_profile_in_aws_cred() -> bool:
 
 
 def get_credential_file_mounts() -> Dict[str, str]:
-    """Checks if aws credential file is set and update if not
+    """Checks if minio credential file is set and update if not
        Updates file containing account ID information
 
     Args:
