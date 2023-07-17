@@ -142,6 +142,7 @@ def get_store_prefix(storetype: StoreType) -> str:
     # R2 storages use 's3://' as a prefix for various aws cli commands
     elif storetype == StoreType.R2:
         return 's3://'
+    # MINIO storages use 's3://' as a prefix for various aws cli commands
     elif storetype == StoreType.MINIO:
         return 'minio://'
     elif storetype == StoreType.AZURE:
@@ -1055,6 +1056,8 @@ class S3Store(AbstractStore):
                     self._transfer_to_s3()
                 elif self.source.startswith('r2://'):
                     self._transfer_to_s3()
+                elif self.source.startswith('minio://'):
+                    self._transfer_to_s3()
                 else:
                     self.batch_aws_rsync([self.source])
         except exceptions.StorageUploadError:
@@ -1137,6 +1140,8 @@ class S3Store(AbstractStore):
             data_transfer.gcs_to_s3(self.name, self.name)
         elif self.source.startswith('r2://'):
             data_transfer.r2_to_s3(self.name, self.name)
+        elif self.source.startswith('minio://'):
+            data_transfer.minio_to_s3(self.name, self.name)
 
     def _get_bucket(self) -> Tuple[Optional[StorageHandle], bool]:
         """Obtains the S3 bucket.
@@ -1438,6 +1443,8 @@ class GcsStore(AbstractStore):
                     self._transfer_to_gcs()
                 elif self.source.startswith('r2://'):
                     self._transfer_to_gcs()
+                elif self.source.startswith('minio://'):
+                    self._transfer_to_gcs()
                 else:
                     # If a single directory is specified in source, upload
                     # contents to root of bucket by suffixing /*.
@@ -1556,6 +1563,8 @@ class GcsStore(AbstractStore):
             data_transfer.s3_to_gcs(self.name, self.name)
         elif isinstance(self.source, str) and self.source.startswith('r2://'):
             data_transfer.r2_to_gcs(self.name, self.name)
+        elif isinstance(self.source, str) and self.source.startswith('minio://'):
+            data_transfer.minio_to_gcs(self.name, self.name)
 
     def _get_bucket(self) -> Tuple[StorageHandle, bool]:
         """Obtains the GCS bucket.
@@ -1794,6 +1803,8 @@ class R2Store(AbstractStore):
                     self._transfer_to_r2()
                 elif self.source.startswith('r2://'):
                     pass
+                elif self.source.startswith('minio://'):
+                    self._transfer_to_r2()
                 else:
                     self.batch_aws_rsync([self.source])
         except exceptions.StorageUploadError:
@@ -1886,6 +1897,8 @@ class R2Store(AbstractStore):
             data_transfer.gcs_to_r2(self.name, self.name)
         elif self.source.startswith('s3://'):
             data_transfer.s3_to_r2(self.name, self.name)
+        elif self.source.startswith('minio://'):
+            data_transfer.minio_to_r2(self.name, self.name)
 
     def _get_bucket(self) -> Tuple[StorageHandle, bool]:
         """Obtains the R2 bucket.
@@ -2071,7 +2084,7 @@ class MINIOStore(AbstractStore):
         pass
 
     def initialize(self):
-        """Initializes the R2 store object on the cloud.
+        """Initializes the MINIO store object on the cloud.
 
         Initialization involves fetching bucket if exists, or creating it if
         it does not.
@@ -2104,11 +2117,11 @@ class MINIOStore(AbstractStore):
                 self.batch_minio_rsync(self.source, create_dirs=True)
             elif self.source is not None:
                 if self.source.startswith('s3://'):
-                    raise Exception('Not supported from s3://')
+                    self._transfer_to_minio()
                 elif self.source.startswith('gs://'):
-                    raise Exception('Not supported from gs://')
+                    self._transfer_to_minio()
                 elif self.source.startswith('r2://'):
-                    raise Exception('Not supported from r2://')
+                    self._transfer_to_minio()
                 elif self.source.startswith('minio://'):
                     pass
                 else:
@@ -2198,8 +2211,10 @@ class MINIOStore(AbstractStore):
                 max_concurrent_uploads=_MAX_CONCURRENT_UPLOADS)
 
     def _transfer_to_minio(self) -> None:
-        pass
-    
+        raise NotImplementedError('Moving data directly from clouds to MINIO is '
+                                  'currently not supported. Please specify '
+                                  'a local source for the storage object.')
+
     def _get_bucket(self) -> Tuple[StorageHandle, bool]:
         """Obtains the R2 bucket.
 
