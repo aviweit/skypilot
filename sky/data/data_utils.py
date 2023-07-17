@@ -52,6 +52,18 @@ def split_r2_path(r2_path: str) -> Tuple[str, str]:
     return bucket, key
 
 
+def split_minio_path(r2_path: str) -> Tuple[str, str]:
+    """Splits MINIO Path into Bucket name and Relative Path to Bucket
+
+    Args:
+      r2_path: str; R2 Path, e.g. r2://imagenet/train/
+    """
+    path_parts = r2_path.replace('minio://', '').split('/')
+    bucket = path_parts.pop(0)
+    key = '/'.join(path_parts)
+    return bucket, key
+
+
 def create_s3_client(region: str = 'us-east-2') -> Client:
     """Helper method that connects to Boto3 client for S3 Bucket
 
