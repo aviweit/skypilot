@@ -945,6 +945,13 @@ class S3Store(AbstractStore):
                 assert data_utils.verify_r2_bucket(self.name), (
                     f'Source specified as {self.source}, a R2 bucket. ',
                     'R2 Bucket should exist.')
+            elif self.source.startswith('minio://'):
+                assert self.name == data_utils.split_minio_path(self.source)[0], (
+                    'MINIO Bucket is specified as path, the name should be '
+                    'the same as MINIO bucket.')
+                assert data_utils.verify_minio_bucket(self.name), (
+                    f'Source specified as {self.source}, a MINIO bucket. ',
+                    'MINIO Bucket should exist.')
         # Validate name
         self.name = self.validate_name(self.name)
 
@@ -1335,6 +1342,14 @@ class GcsStore(AbstractStore):
                     assert data_utils.verify_r2_bucket(self.name), (
                         f'Source specified as {self.source}, a R2 bucket. ',
                         'R2 Bucket should exist.')
+                elif self.source.startswith('minio://'):
+                    assert self.name == data_utils.split_minio_path(
+                        self.source
+                    )[0], ('MINIO Bucket is specified as path, the name should be '
+                           'the same as MINIO bucket.')
+                    assert data_utils.verify_minio_bucket(self.name), (
+                        f'Source specified as {self.source}, a MINIO bucket. ',
+                        'MINIO Bucket should exist.')
         # Validate name
         self.name = self.validate_name(self.name)
         # Check if the storage is enabled
@@ -1752,6 +1767,13 @@ class R2Store(AbstractStore):
                 assert self.name == data_utils.split_r2_path(self.source)[0], (
                     'R2 Bucket is specified as path, the name should be '
                     'the same as R2 bucket.')
+            elif self.source.startswith('minio://'):
+                assert self.name == data_utils.split_minio_path(self.source)[0], (
+                    'MINIO Bucket is specified as path, the name should be '
+                    'the same as MINIO bucket.')
+                assert data_utils.verify_minio_bucket(self.name), (
+                    f'Source specified as {self.source}, a MINIO bucket. ',
+                    'MINIO Bucket should exist.')
         # Validate name
         self.name = S3Store.validate_name(self.name)
         # Check if the storage is enabled
@@ -2081,7 +2103,32 @@ class MINIOStore(AbstractStore):
                          sync_on_reconstruction)
 
     def _validate(self):
-        pass
+        if self.source is not None and isinstance(self.source, str):
+            if self.source.startswith('s3://'):
+                assert self.name == data_utils.split_s3_path(self.source)[0], (
+                    'S3 Bucket is specified as path, the name should be the'
+                    ' same as S3 bucket.')
+                assert data_utils.verify_s3_bucket(self.name), (
+                    f'Source specified as {self.source}, a S3 bucket. ',
+                    'S3 Bucket should exist.')
+            elif self.source.startswith('gs://'):
+                assert self.name == data_utils.split_gcs_path(self.source)[0], (
+                    'GCS Bucket is specified as path, the name should be '
+                    'the same as GCS bucket.')
+                assert data_utils.verify_gcs_bucket(self.name), (
+                    f'Source specified as {self.source}, a GCS bucket. ',
+                    'GCS Bucket should exist.')
+            elif self.source.startswith('r2://'):
+                assert self.name == data_utils.split_r2_path(self.source)[0], (
+                    'R2 Bucket is specified as path, the name should be '
+                    'the same as R2 bucket.')
+                assert data_utils.verify_r2_bucket(self.name), (
+                    f'Source specified as {self.source}, a R2 bucket. ',
+                    'R2 Bucket should exist.')
+            elif self.source.startswith('minio://'):
+                assert self.name == data_utils.split_minio_path(self.source)[0], (
+                    'MINIO Bucket is specified as path, the name should be '
+                    'the same as MINIO bucket.')
 
     def initialize(self):
         """Initializes the MINIO store object on the cloud.
