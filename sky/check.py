@@ -103,4 +103,11 @@ def get_cloud_credential_file_mounts() -> Dict[str, str]:
     if r2_is_enabled:
         r2_credential_mounts = cloudflare.get_credential_file_mounts()
         file_mounts.update(r2_credential_mounts)
+    # get_enabled_clouds() does not support minio
+    # as only clouds with computing instances are marked
+    # as enabled by skypilot, therefore we explicitly add this here
+    minio_is_enabled, _ = minio.check_credentials()
+    if minio_is_enabled:
+        minio_credential_mounts = minio.get_credential_file_mounts()
+        file_mounts.update(minio_credential_mounts)
     return file_mounts
