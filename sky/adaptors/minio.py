@@ -7,12 +7,12 @@ import threading
 import os
 from typing import Dict, Optional, Tuple
 
+from sky import skypilot_config
 from sky.utils import ux_utils
 
 boto3 = None
 botocore = None
 _session_creation_lock = threading.RLock()
-ACCOUNT_ID_PATH = '~/.minio/accountid'
 MINIO_CREDENTIALS_PATH = '~/.minio/minio.credentials'
 MINIO_PROFILE_NAME = 'minio'
 _INDENT_PREFIX = '    '
@@ -149,18 +149,15 @@ def botocore_exceptions():
 
 
 def create_endpoint():
-    """Reads accountid necessary to interact with MINIO"""
-
-    accountid_path = os.path.expanduser(ACCOUNT_ID_PATH)
-    with open(accountid_path, 'r') as f:
-        lines = f.readlines()
-        accountid = lines[0]
-
-    accountid = accountid.strip()
-    # endpoint = 'https://' + accountid + '.minio.miniostorage.com'
-    # TODO (weit)
-    endpoint = 'http://esxi3-vm-13:9000'
-
+    """
+    Read minio endpoint from skypilot's config.yaml
+    {
+        "minio": {
+            "endpoint": "http:/my-minio-host:9000"
+        }
+    }
+    """
+    endpoint = skypilot_config.get_nested(("minio", "endpoint"), None)
     return endpoint
 
 
@@ -175,25 +172,27 @@ def check_credentials() -> Tuple[bool, Optional[str]]:
     """
 
     hints = None
-    accountid_path = os.path.expanduser(ACCOUNT_ID_PATH)
     if not minio_profile_in_aws_cred():
         hints = f'[{MINIO_PROFILE_NAME}] profile is not set in {MINIO_CREDENTIALS_PATH}.'
-    if not os.path.exists(accountid_path):
+    if not skypilot_config.get_nested(("minio", "endpoint"), None):
         if hints:
             hints += ' Additionally, '
         else:
             hints = ''
-        hints += 'Account ID from MINIO dashboard is not set.'
+        hints += 'endpoint for MINIO is not set.'
+
     if hints:
         hints += ' Run the following commands:'
         if not minio_profile_in_aws_cred():
             hints += f'\n{_INDENT_PREFIX}  $ pip install boto3'
             hints += f'\n{_INDENT_PREFIX}  $ AWS_SHARED_CREDENTIALS_FILE={MINIO_CREDENTIALS_PATH} aws configure --profile minio'  # pylint: disable=line-too-long
-        if not os.path.exists(accountid_path):
-            hints += f'\n{_INDENT_PREFIX}  $ mkdir -p ~/.minio'
-            hints += f'\n{_INDENT_PREFIX}  $ echo <YOUR_ACCOUNT_ID_HERE> > ~/.minio/accountid'  # pylint: disable=line-too-long
+        if not skypilot_config.get_nested(("minio", "endpoint"), None):
+            hints += f'\n{_INDENT_PREFIX}  $ echo {{"minio": {{ "endpoint": "<YOUR MINIO ENDPOINT HERE>" }} }} > ~/.sky/config.yaml'  # pylint: disable=line-too-long
         hints += f'\n{_INDENT_PREFIX}For more info: '
         hints += 'https://skypilot.readthedocs.io/en/latest/getting-started/installation.html#minio-minio'  # pylint: disable=line-too-long
+
+    
+
 
     return (False, hints) if hints else (True, hints)
 
@@ -221,7 +220,6 @@ def get_credential_file_mounts() -> Dict[str, str]:
     """
 
     minio_credential_mounts = {
-        MINIO_CREDENTIALS_PATH: MINIO_CREDENTIALS_PATH,
-        ACCOUNT_ID_PATH: ACCOUNT_ID_PATH
+        MINIO_CREDENTIALS_PATH: MINIO_CREDENTIALS_PATH
     }
     return minio_credential_mounts
