@@ -77,7 +77,7 @@ def get_minio_credentials(boto3_session):
 @functools.lru_cache()
 @import_package
 def session():
-    """Create an AWS session."""
+    """Create a Minio session."""
     # Creating the session object is not thread-safe for boto3,
     # so we add a reentrant lock to synchronize the session creation.
     # Reference: https://github.com/boto/boto3/issues/1592
@@ -162,7 +162,7 @@ def create_endpoint():
 
 
 def check_credentials() -> Tuple[bool, Optional[str]]:
-    """Checks if the user has access credentials to Minio MINIO.
+    """Checks if the user has access credentials to Minio.
 
     Returns:
         A tuple of a boolean value and a hint message where the bool
@@ -190,9 +190,6 @@ def check_credentials() -> Tuple[bool, Optional[str]]:
             hints += f'\n{_INDENT_PREFIX}  $ echo {{"minio": {{ "endpoint": "<YOUR MINIO ENDPOINT HERE>" }} }} > ~/.sky/config.yaml'  # pylint: disable=line-too-long
         hints += f'\n{_INDENT_PREFIX}For more info: '
         hints += 'https://skypilot.readthedocs.io/en/latest/getting-started/installation.html#minio-minio'  # pylint: disable=line-too-long
-
-    
-
 
     return (False, hints) if hints else (True, hints)
 
