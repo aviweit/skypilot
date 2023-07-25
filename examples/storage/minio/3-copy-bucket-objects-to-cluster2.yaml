@@ -6,8 +6,9 @@ resources:
   cloud: kubernetes
 
 file_mounts:
-
-  /datasets-storage: minio://sky-foo-dataset
+  # sky-demo-dataset bucket copied under /dataset-demo folder
+  # in ray cluster
+  /dataset-demo: minio://sky-demo-dataset
 
 # Typical use: pip install -r requirements.txt
 # Invoked under the workdir (i.e., can use its files).
@@ -17,6 +18,6 @@ setup: |
 # Typical use: make use of resources, such as running training.
 # Invoked under the workdir (i.e., can use its files).
 run: |
-  echo "Hello, Foo, how are you?"
+  echo "Hello, how are you?"
   conda env list
-  ls -l /datasets-storage/
+  ls -l /dataset-demo/

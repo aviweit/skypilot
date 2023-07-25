@@ -7,8 +7,10 @@ resources:
 
 file_mounts:
 
-  /datasets-storage:
-    source: minio://sky-foo-dataset
+  /dataset-demo:
+    # sky-demo-dataset bucket mounted under /dataset-demo folder
+    # in ray cluster
+    source: minio://sky-demo-dataset
     mode: MOUNT
 
 # Typical use: pip install -r requirements.txt
@@ -19,10 +21,10 @@ setup: |
 # Typical use: make use of resources, such as running training.
 # Invoked under the workdir (i.e., can use its files).
 run: |
-  echo "Hello, Foo, how are you?"
+  echo "Hello, how are you?"
   conda env list
 
   # ensure sky/data contents are listed
-  ls -ltr /datasets-storage
-  # Write to private bucket in MOUNT mode should pass
-  echo "hello" > /datasets-storage/hello.txt
+  ls -l /dataset-demo
+  # Write to bucket in MOUNT mode should pass
+  echo "hello" > /dataset-demo/hello.txt
