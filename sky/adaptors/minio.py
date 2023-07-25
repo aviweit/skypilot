@@ -151,11 +151,10 @@ def botocore_exceptions():
 def create_endpoint():
     """
     Read minio endpoint from skypilot's config.yaml
-    {
-        "minio": {
-            "endpoint": "http:/my-minio-host:9000"
-        }
-    }
+
+    minio:
+        endpoint: "http://my-minio-host:9000"
+
     """
     endpoint = skypilot_config.get_nested(("minio", "endpoint"), None)
     return endpoint
