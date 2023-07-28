@@ -41,6 +41,7 @@ pod_spec:
               - name: RETRY_INTERVAL
                 # seconds
                 value: "60"
+        terminationGracePeriodSeconds: 0
 service_spec:
     apiVersion: v1
     kind: Service
