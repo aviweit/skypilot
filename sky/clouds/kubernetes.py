@@ -308,6 +308,7 @@ class Kubernetes(clouds.Cloud):
             'k8s_ssh_key_secret_name': self.SKY_SSH_KEY_SECRET_NAME,
             # TODO(romilb): Allow user to specify custom images
             'image_id': self.IMAGE,
+            'sshjump': self.SKY_SSH_JUMP_NAME
         }
 
     def _get_feasible_launchable_resources(

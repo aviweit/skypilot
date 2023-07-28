@@ -19,6 +19,8 @@ alert_threshold = int(os.getenv("ALERT_THRESHOLD", "300"))
 # In seconds
 retly_interval = int(os.getenv("RETRY_INTERVAL", "60"))
 
+label_selector=f"skypilot-sshjump={current_name}"
+
 
 def poll():
     sys.stdout.write("enter poll()\n")
@@ -38,17 +40,17 @@ def poll():
     
         # List the pods in the current namespace
         try:
-            ret = v1.list_namespaced_pod(current_namespace, label_selector="parent=skypilot")
+            ret = v1.list_namespaced_pod(current_namespace, label_selector=label_selector)
         except Exception as e:
             sys.stdout.write(f"[ERROR] exit poll() with error: {e}\n")
             raise
 
         if len(ret.items) == 0:
-            sys.stdout.write(f"NOT FOUND active pods with label 'parent: skypilot' in namespace: '{current_namespace}'\n")
+            sys.stdout.write(f"NOT FOUND active pods with label '{label_selector}' in namespace: '{current_namespace}'\n")
             w8time_delta = w8time_delta + retry_interval_delta
             sys.stdout.write(f"w8time_delta after time increment: {w8time_delta}, alert threshold: {alert_delta}\n")
         else:
-            sys.stdout.write(f"FOUND active pods with label 'parent: skypilot' in namespace: '{current_namespace}'\n")
+            sys.stdout.write(f"FOUND active pods with label '{label_selector}' in namespace: '{current_namespace}'\n")
             # reset ..
             w8time_delta = datetime.timedelta()
             sys.stdout.write(f"w8time_delta is reset: {w8time_delta}\n")
@@ -74,6 +76,7 @@ def main():
     sys.stdout.write(f"*** current_namespace {current_namespace}\n")
     sys.stdout.write(f"*** alert_threshold {alert_threshold}\n")
     sys.stdout.write(f"*** retly_interval {retly_interval}\n")
+    sys.stdout.write(f"*** label_selector {label_selector}\n")
 
     if not current_name or not current_namespace:
         raise Exception('[ERROR] One or more environment variables is missing '
