@@ -2699,7 +2699,12 @@ class CloudVmRayBackend(backends.Backend['CloudVmRayResourceHandle']):
 
         # For backward compatibility and robustness of skylet, it is restarted
         with log_utils.safe_rich_status('Updating remote skylet'):
+            import time
+            start = time.time()
             self.run_on_head(handle, _MAYBE_SKYLET_RESTART_CMD)
+            end = time.time()
+            elapsed = end - start
+            print(f"_update_after_cluster_provisioned: run_on_head took {elapsed}") # time in seconds
 
         # Update job queue to avoid stale jobs (when restarted), before
         # setting the cluster to be ready.

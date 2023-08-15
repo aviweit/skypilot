@@ -1,0 +1,28 @@
+# this file is based on storage_demo.yaml
+
+# Run the below locally to populate ~/datasets
+
+# $ cd ~
+# $ mkdir ~/datasets
+# $ cp -R ~/skypilot/sky/skylet/ ~/datasets/
+name: storage-demo
+
+workdir: .
+
+file_mounts:
+  /datasets: ~/datasets
+
+  /datasets-storage:
+    name: sky-dataset-mybucket # Make sure this name is unique or you own this bucket
+    source: ~/datasets
+    store: minio # Could be either of [s3, gcs]; default: None
+    persistent: True  # Defaults to True, can be set to false.
+    mode: COPY  # Defaults to MOUNT if not specified
+
+run: |
+  pwd
+  ls -la /datasets/*
+  ls -la /datasets-storage/*
+
+# Remember to run `sky storage ls` and `sky storage delete` to delete the
+# created storage objects!
